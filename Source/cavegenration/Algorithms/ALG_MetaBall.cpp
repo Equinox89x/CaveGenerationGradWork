@@ -3,6 +3,8 @@
 
 #include "ALG_MetaBall.h"
 #include <cavegenration/Generator/NoiseGenerator.h>
+#include "Async/Async.h"
+#include "Async/TaskGraphInterfaces.h"
 
 
 // Sets default values for this component's properties
@@ -32,7 +34,7 @@ void UALG_MetaBall::InitValues(FVector minBoundary, FVector maxBoundary)
 
 	for (size_t i = 0; i < MetaBalls.Num(); i++)
 	{
-		auto metaBall{ GetWorld()->SpawnActor<AA_Metaball>(MetaBalls[i]) };
+		const auto metaBall{ GetWorld()->SpawnActor<AA_Metaball>(MetaBalls[i]) };
 		FVector loc{ MinBoundary }; 
 		loc.X += 300;
 		loc.Y += 300;
@@ -62,71 +64,61 @@ void UALG_MetaBall::Update()
 {
 	Super::Update();
 
-	InfluenceRadius = sumModifier * sumModifier2;
+	MinValue = 0;
+	MaxValue = 0;
+	SphereSize = InfluenceRadius/2;
+	
+	const int NumCubes = NoiseGenerator->GridCubes.Num();
 
-	//for (size_t i = 0; i < NoiseGenerator->GridSize.X; i++)
-	//{
-	//	for (size_t j = 0; j < NoiseGenerator->GridSize.Y; j++)
-	//	{
-	//		for (size_t k = 0; k < NoiseGenerator->GridSize.Z; k++)
-	//		{
-	//			int32 Index = i + j * NoiseGenerator->GridSize.X + k * NoiseGenerator->GridSize.X * NoiseGenerator->GridSize.Y;
-	//			auto visPos{ NoiseGenerator->McData.Locations[Index] };
-	//			float Sum = 0;
-
-	//			for (int32 l = 0; l < MetaBallObjects.Num(); l++)
-	//			{
-	//				auto pos{ MetaBallObjects[l]->GetActorLocation() };
-	//				float XDiff = visPos.X - pos.X;
-	//				float YDiff = visPos.Y - pos.Y;
-	//				float ZDiff = visPos.Z - pos.Z;
-
-	//				float D = FMath::Sqrt((XDiff * XDiff) + (YDiff * YDiff) + (ZDiff * ZDiff));
-	//				Sum += InfluenceRadius / D;
-	//				//Sum += sumModifier * sumModifier2 / D;
-	//			}
-
-	//			NoiseGenerator->McData.Values[Index] = Sum;
-	//		}
-	//	}
-	//}
-
-	float minValue = 0;
-	float maxValue = 0;
-
-	for (FMCCube& cube : NoiseGenerator->GridCubes)
+	TArray<FGraphEventRef> TaskRefs;
+	for (int i = 0; i < NoiseGenerator->GridCubes.Num() - 1; ++i)
 	{
-		for (size_t j = 0; j < cube.PointPositions.Num(); j++)
+		FMCCube& item{ NoiseGenerator->GridCubes[i] };
+		for (size_t j = 0; j < item.PointPositions.Num(); j++)
 		{
 			float Sum = 0;
-			auto cubeCornerPos{ cube.PointPositions[j] };
+			const auto cubeCornerPos{ item.PointPositions[j] };
 
 			for (const AA_Metaball* metaBall : MetaBallObjects)
 			{
-				auto pos{ metaBall->GetActorLocation() };
-				float XDiff = cubeCornerPos.X - pos.X;
-				float YDiff = cubeCornerPos.Y - pos.Y;
-				float ZDiff = cubeCornerPos.Z - pos.Z;
+				const auto pos{ metaBall->GetActorLocation() };
+				const float XDiff = cubeCornerPos.X - pos.X;
+				const float YDiff = cubeCornerPos.Y - pos.Y;
+				const float ZDiff = cubeCornerPos.Z - pos.Z;
 
 				float D = FMath::Sqrt((XDiff * XDiff) + (YDiff * YDiff) + (ZDiff * ZDiff));
 				Sum += InfluenceRadius / D;
 			}
 
-			cube.PointValues[j] = FMath::Clamp(Sum, 0, 255);
-			minValue = FMath::Min(minValue, cube.PointValues[j]);
-			maxValue = FMath::Max(maxValue, cube.PointValues[j]);
+			item.PointValues[j] = Sum;
+			MinValue = FMath::Min(MinValue, Sum);
+			MaxValue = FMath::Max(MaxValue, Sum);
 		}
 	}
 
-	//for (FMCCube& cube : NoiseGenerator->GridCubes)
-	//{
-	//	for (size_t j = 0; j < cube.PointValues.Num(); j++) {
-	//		//float MappedSum = (cube.PointValues[j] - minValue) / (maxValue - minValue) * 255.0f;
-	//		cube.PointValues[j] = RemapValue(cube.PointValues[j], minValue, maxValue, 0, 255);
-	//	}
-	//}
 
-	//multithread
+	for (FMCCube& cube : NoiseGenerator->GridCubes)
+	{
+		for (size_t j = 0; j < cube.PointValues.Num(); j++) {
+			const int val{ RemapValue(cube.PointValues[j], MinValue, MaxValue, 0, 255) };
+			if (NoiseGenerator->IsMulticolor) {
+				cube.PointValues[j] = val;
+			}
+			else {
+				cube.PointValues[j] = val > NoiseGenerator->ColorToWatch ? NoiseGenerator->white : NoiseGenerator->black;
+			}
+		}
+	}
+
+}
+
+
+bool UALG_MetaBall::IsPointInsideSphere(const FVector& Point, const FVector& SphereCenter, float SphereRadius)
+{
+	const float DistanceSquared = FVector::DistSquared(Point, SphereCenter);
+	const float RadiusSquared = FMath::Square(SphereRadius);
+
+	return DistanceSquared <= RadiusSquared;
 }
 
 int UALG_MetaBall::RemapValue(int Value, int OldMin, int OldMax, int NewMin, int NewMax)

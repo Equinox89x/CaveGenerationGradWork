@@ -19,14 +19,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<TSubclassOf<AA_Metaball>> MetaBalls{ nullptr };
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float PixelSize = 20.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int sumModifier{ 1000 };
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int sumModifier2{ 100 };
-	float InfluenceRadius{ 0 };
+	float InfluenceRadius{ 20 };
 
 	virtual void InitValues(FVector minBoundary, FVector maxBoundary);
 	virtual void Update();
@@ -40,14 +34,14 @@ protected:
 	virtual void BeginPlay() override;
 
 private:	
-	TArray<AA_Metaball*> MetaBallObjects{};
 	FVector MinBoundary{};
 	FVector MaxBoundary{};
 
+	TArray<AA_Metaball*> MetaBallObjects{};
+	int MaxValue{ 0 }, MinValue{ 0 };
+	FCriticalSection CriticalSection;
 	int RemapValue(int Value, int OldMin, int OldMax, int NewMin, int NewMax);
-};
+	bool IsPointInsideSphere(const FVector& Point, const FVector& SphereCenter, float SphereRadius);
 
-int RemapValue(int Value, int OldMin, int OldMax, int NewMin, int NewMax)
-{
-	return FMath::RoundToInt((Value - OldMin) * (float(NewMax - NewMin) / float(OldMax - OldMin)) + NewMin);
-}
+	float SphereSize{ 0 };
+};

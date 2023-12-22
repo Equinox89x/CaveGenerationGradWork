@@ -154,17 +154,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid)
 	TArray<FMCCube> GridCubes{ };	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid)
-	TArray<FMCCubeIndex> vertTable{};
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid)
 	bool ShowOldGrid{ true };	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid)
+	bool CanDraw{ true };	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid)
 	bool DrawDebugAsBox{ true };	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid)
+	bool IsMulticolor{ false };
 
-	FMCData McData{  };
-	int white{ 255 };
-	int black{ 0 };
-	FVector GridSize{ 40, 40, 40 };
-	float Offset = 40;
 
 	virtual void Tick(float DeltaTime) override;
 
@@ -178,11 +175,24 @@ public:
 	FString CycleAlgorithm();	
 	UFUNCTION(BlueprintCallable)
 	void ClearMesh() { ProcMesh->ClearAllMeshSections(); };
+	UFUNCTION(BlueprintCallable)
+	bool GetIsGenerated() { return Task.IsValid() && Task.GetReference()->IsComplete(); };
+	UFUNCTION(BlueprintCallable)
+	void SetCubeGridX(int value) { CubeGridSize.X = value; GridSize.X = value * 2; };
+	UFUNCTION(BlueprintCallable)
+	void SetCubeGridY(int value) { CubeGridSize.Y = value; GridSize.Y = value * 2; };
+	UFUNCTION(BlueprintCallable)
+	void SetCubeGridZ(int value) { CubeGridSize.Z = value; GridSize.Z = value * 2; };
 
 	void CreateCubeGrid();
 	bool CheckValues();
 
 	FCriticalSection CriticalSection;
+	int white{ 255 };
+	int black{ 0 };
+	FVector GridSize{ 40, 40, 40 };
+	FMCData McData{  };
+	TMultiMap<FVector, FMCCubeIndex> vertTable{};
 
 protected:
 	virtual void BeginPlay() override;
@@ -191,6 +201,7 @@ protected:
 	void CreateGrid();
 
 private:	
+	float Offset = 40;
 
 	FVector MaxBoundary{};
 	FVector MinBoundary{};
@@ -198,121 +209,53 @@ private:
 	UALG_Base* SelectedComponent{ nullptr };
 
 	float timer{ 1 };
-	bool IsMulticolor = false;
+	FGraphEventRef Task{};
 
 	void Draw();
-	TArray<int> FindSharedVertices(int i, int j, int k, const FVector& GridSize);
-
-
-};
-
-class FNoiseGeneratorWorker : public FRunnable
-{
-public:
-	FNoiseGeneratorWorker(ANoiseGenerator* InNoiseGenerator, int32 InX, int32 InY)
-		: NoiseGenerator(InNoiseGenerator), X(InX), Y(InY)
-	{
-	}
-
-	virtual bool Init() override
-	{
-		return true;
-	}
-
-	virtual uint32 Run() override
-	{
-		if (NoiseGenerator)
-		{
-			for (int k = 0; k < NoiseGenerator->CubeGridSize.Z; k++)
-			{
-				int Index = X + Y * NoiseGenerator->CubeGridSize.X + k * NoiseGenerator->CubeGridSize.X * NoiseGenerator->CubeGridSize.Y;
-				FVector SpawnLocation = FVector{ X * (NoiseGenerator->CubeSize * 2), Y * (NoiseGenerator->CubeSize * 2), k * (NoiseGenerator->CubeSize * 2) };
-
-				FMCCube Cube(SpawnLocation, NoiseGenerator->CubeSize);
-				for (int G = 0; G < Cube.PointPositions.Num(); G++)
-				{
-					FScopeLock Lock(&NoiseGenerator->CriticalSection);
-					NoiseGenerator->vertTable.Add(FMCCubeIndex{ Cube.PointPositions[G], Index, G });
-				}
-				NoiseGenerator->GridCubes.Add(Cube);
-			}
-		}
-
-		return 0;
-	}
-
-	virtual void Exit() override
-	{
-	}
-
-private:
-	ANoiseGenerator* NoiseGenerator;
-	int32 X, Y;
 };
 
 class FNoiseGeneratorWorker2 : public FRunnable
 {
 public:
-	FNoiseGeneratorWorker2(TArray<FMCCubeIndex>& InVertTable, TArray<FMCCube>& InGridCubes, bool iMulticolor, int colorToWatch) : 
-		VertTable(InVertTable),
-		GridCubes(InGridCubes),
+	FNoiseGeneratorWorker2(ANoiseGenerator* noiseGenerator, bool iMulticolor, int colorToWatch) :
+		NoiseGenerator{ noiseGenerator },
 		IsMulticolor{IsMulticolor},
 		ColorToWatch{ColorToWatch}
 	{}
 
 	virtual bool Init() override
 	{
-		// Initialize any worker-specific data here
 		return true;
 	}
 
 	virtual uint32 Run() override
 	{
-		// Your multithreaded logic goes here
-		while (!VertTable.IsEmpty())
+		for (const auto& Pair : NoiseGenerator->vertTable)
 		{
-			int i2 = 0;
-			for (const auto& Pair : VertTable)
+			TArray<FMCCubeIndex> OutValues;
+			NoiseGenerator->vertTable.MultiFind(Pair.Key, OutValues);
+
+			int State = FMath::RandRange(black, white);
+			for (const FMCCubeIndex& Entry : OutValues)
 			{
-				TArray<FMCCubeIndex> OutValues;
-
-				for (const auto& Pair2 : VertTable)
+				if (IsMulticolor)
 				{
-					if (Pair2.vertLocation == Pair.vertLocation)
-					{
-						OutValues.Add(Pair2);
-					}
+					NoiseGenerator->GridCubes[Entry.cubeIndex].PointValues[Entry.vertIndex] = State;
 				}
-
-				int State = FMath::RandRange(black, white);
-				for (size_t i = 0; i < OutValues.Num(); i++)
+				else
 				{
-					if (IsMulticolor)
-					{
-						GridCubes[OutValues[i].cubeIndex].PointValues[OutValues[i].vertIndex] = State;
-					}
-					else
-					{
-						GridCubes[OutValues[i].cubeIndex].PointValues[OutValues[i].vertIndex] = State < ColorToWatch ? white : black;
-					}
-					VertTable.RemoveAt(i2);
-					i2++;
+					NoiseGenerator->GridCubes[Entry.cubeIndex].PointValues[Entry.vertIndex] = State < ColorToWatch ? white : black;
 				}
-				break;
 			}
 		}
 
 		return 0;
 	}
 
-	virtual void Stop() override
-	{
-		// Clean up any resources here
-	}
+	virtual void Stop() override {}
 
 private:
-	TArray<FMCCubeIndex>& VertTable;
-	TArray<FMCCube>& GridCubes;
+	ANoiseGenerator* NoiseGenerator;
 	int white{ 255 };
 	int black{ 0 };
 	bool IsMulticolor{ false };

@@ -17,8 +17,6 @@ void UALG_Base::BeginPlay()
 	Super::BeginPlay();
 
 	NoiseGenerator = Cast<ANoiseGenerator>(GetOwner());
-	Resolution = NoiseGenerator->Offset;
-
 }
 
 void UALG_Base::Update() {
@@ -45,7 +43,6 @@ void UALG_Base::GenerateMesh()
 {
     int index{ 0 };
     NoiseGenerator->ProcMesh->ClearAllMeshSections();
-    //loop through all cubes and generate triangle
     for (const FMCCube& cube : NoiseGenerator->GridCubes)
     {
         bool isNotFullOrEmpty{ cube.PointValues.Contains(0) && cube.PointValues.Contains(255) };
@@ -66,7 +63,6 @@ void UALG_Base::GenerateMesh()
             }
         }
 
-        // Use the cube index to determine the triangles
         for (int i = 0; TriangulationTable[CubeConfigIndex][i] != -1; i += 3)
         {
             int VertexIndex0 = TriangulationTable[CubeConfigIndex][i];
@@ -77,7 +73,6 @@ void UALG_Base::GenerateMesh()
             FVector Vertex1 = cube.TrianglePointPositions[VertexIndex1];
             FVector Vertex2 = cube.TrianglePointPositions[VertexIndex2];
 
-            // Store the vertices and triangles
             Vertices.Add(Vertex0);
             Vertices.Add(Vertex1);
             Vertices.Add(Vertex2);

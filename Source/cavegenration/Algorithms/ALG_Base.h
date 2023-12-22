@@ -19,8 +19,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float DefaultTimer{ 1 };
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float Resolution{ 10 };
 
 	virtual void InitValues(FVector MinBoundary, FVector Maxboundary) {};
 	virtual void Cleanup() {};
@@ -30,11 +28,11 @@ public:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	ANoiseGenerator* NoiseGenerator{ nullptr };
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
-	ANoiseGenerator* NoiseGenerator{ nullptr };
 
 	TArray<TArray<int>> Cubes{  };
 
