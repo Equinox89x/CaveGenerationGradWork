@@ -31,8 +31,8 @@ void UALG_Base::Draw()
 		{
 			for (int k = 0; k < NoiseGenerator->GridSize.Z; ++k)
 			{
-				int Index = i + j * NoiseGenerator->GridSize.X + k * NoiseGenerator->GridSize.X * NoiseGenerator->GridSize.Y;
-				uint8 color{ static_cast<uint8>(NoiseGenerator->McData.Values[Index]) };
+				const int Index = i + j * NoiseGenerator->GridSize.X + k * NoiseGenerator->GridSize.X * NoiseGenerator->GridSize.Y;
+				const uint8 color{ static_cast<uint8>(NoiseGenerator->McData.Values[Index]) };
 				DrawDebugPoint(GetWorld(), NoiseGenerator->McData.Locations[Index], 4, FColor{ color, color, color });
 			}
 		}
@@ -43,10 +43,10 @@ void UALG_Base::GenerateMesh()
 {
     int index{ 0 };
     NoiseGenerator->ProcMesh->ClearAllMeshSections();
-    for (const FMCCube& cube : NoiseGenerator->GridCubes)
+    for (const auto& cube : NoiseGenerator->GridCubes)
     {
-        bool isNotFullOrEmpty{ cube.PointValues.Contains(0) && cube.PointValues.Contains(255) };
-        if (isNotFullOrEmpty) {
+        bool isNotFullOrEmpty{ cube.Value.PointValues.Contains(0) && cube.Value.PointValues.Contains(255) };
+        if (!isNotFullOrEmpty) {
             continue;
         }
 
@@ -57,7 +57,7 @@ void UALG_Base::GenerateMesh()
         int CubeConfigIndex = 0;
         for (int i = 0; i < 8; ++i)
         {
-            if (cube.PointValues[i] > 0.5f) 
+            if (cube.Value.PointValues[i] > 0.5f) 
             {
                 CubeConfigIndex |= 1 << i;
             }
@@ -65,13 +65,13 @@ void UALG_Base::GenerateMesh()
 
         for (int i = 0; TriangulationTable[CubeConfigIndex][i] != -1; i += 3)
         {
-            int VertexIndex0 = TriangulationTable[CubeConfigIndex][i];
-            int VertexIndex1 = TriangulationTable[CubeConfigIndex][i + 1];
-            int VertexIndex2 = TriangulationTable[CubeConfigIndex][i + 2];
+            const int VertexIndex0 = TriangulationTable[CubeConfigIndex][i];
+            const int VertexIndex1 = TriangulationTable[CubeConfigIndex][i + 1];
+            const int VertexIndex2 = TriangulationTable[CubeConfigIndex][i + 2];
 
-            FVector Vertex0 = cube.TrianglePointPositions[VertexIndex0];
-            FVector Vertex1 = cube.TrianglePointPositions[VertexIndex1];
-            FVector Vertex2 = cube.TrianglePointPositions[VertexIndex2];
+            const FVector Vertex0 = cube.Value.TrianglePointPositions[VertexIndex0];
+            const FVector Vertex1 = cube.Value.TrianglePointPositions[VertexIndex1];
+            const FVector Vertex2 = cube.Value.TrianglePointPositions[VertexIndex2];
 
             Vertices.Add(Vertex0);
             Vertices.Add(Vertex1);

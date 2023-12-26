@@ -27,3 +27,5 @@ enum class EAlgorithms {
 //	TArray<TArray<int>> indexes;
 //	
 //};
+
+//float RemapValue(float Value, int OldMin, int OldMax, int NewMin, int NewMax);

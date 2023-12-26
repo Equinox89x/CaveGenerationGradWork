@@ -37,9 +37,9 @@ void UALG_CellularAutomata::Update()
         {
             for (int j = 0; j < NoiseGenerator->GridSize.Y; ++j)
             {
-                int Index = i + j * NoiseGenerator->GridSize.X;
-                int State = NoiseGenerator->McData.Values[Index];
-                int Neighbors = CountNeighbors(i, j);
+                const int Index = i + j * NoiseGenerator->GridSize.X;
+                const int State = NoiseGenerator->McData.Values[Index];
+                const int Neighbors = CountNeighbors(i, j);
 
                 if (State == NoiseGenerator->black && Neighbors == 3) {
                     NoiseGenerator->McData.Values[Index] = NoiseGenerator->white;
@@ -55,15 +55,15 @@ void UALG_CellularAutomata::Update()
 
 int UALG_CellularAutomata::CountNeighbors(int x, int y)
 {
-    int32 Sum = 0;
-    for (int32 i = -1; i < 2; ++i)
+    int Sum = 0;
+    for (int i = -1; i < 2; ++i)
     {
-        for (int32 j = -1; j < 2; ++j)
+        for (int j = -1; j < 2; ++j)
         {
-            int32 Col = (x + i + static_cast<int>(NoiseGenerator->GridSize.X)) % static_cast<int>(NoiseGenerator->GridSize.X);
-            int32 Row = (y + j + static_cast<int>(NoiseGenerator->GridSize.Y)) % static_cast<int>(NoiseGenerator->GridSize.Y);
+            const int Col = (x + i + static_cast<int>(NoiseGenerator->GridSize.X)) % static_cast<int>(NoiseGenerator->GridSize.X);
+            const int Row = (y + j + static_cast<int>(NoiseGenerator->GridSize.Y)) % static_cast<int>(NoiseGenerator->GridSize.Y);
 
-            int32 NeighborIndex = NoiseGenerator->GridSize.X * Row + Col;
+            const int NeighborIndex = NoiseGenerator->GridSize.X * Row + Col;
             Sum += (NoiseGenerator->McData.Values[NeighborIndex] == NoiseGenerator->white) ? 1 : 0;
         }
     }

@@ -288,7 +288,6 @@ public:
 
 			FVector PointPosition{ keys[0] };
 			PointPosition *= NoiseGenerator->PerlinScale;
-			// TODO make PerlinNoise3D
 			const float PerlinValue = FMath::PerlinNoise2D(FVector2D{ PointPosition.X, PointPosition.Z });
 			//const float PerlinValue = NoiseGenerator->NoiseGen->GetNoise3D(static_cast<float>(pos.X), static_cast<float>(pos.Y), static_cast<float>(pos.Z));
 			//const float normalisedValue{ NoiseGenerator->RemapValue(PerlinValue, -1, 1, black, white) };

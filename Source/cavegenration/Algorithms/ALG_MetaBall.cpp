@@ -71,13 +71,14 @@ void UALG_MetaBall::Update()
 	const int NumCubes = NoiseGenerator->GridCubes.Num();
 
 	TArray<FGraphEventRef> TaskRefs;
-	for (int i = 0; i < NoiseGenerator->GridCubes.Num() - 1; ++i)
-	{
-		FMCCube& item{ NoiseGenerator->GridCubes[i] };
-		for (size_t j = 0; j < item.PointPositions.Num(); j++)
+	for(auto& item: NoiseGenerator->GridCubes){
+	//for (int i = 0; i < NoiseGenerator->GridCubes.Num() - 1; ++i)
+	//{
+	//	FMCCube& item{ NoiseGenerator->GridCubes[i] };
+		for (size_t j = 0; j < item.Value.PointPositions.Num(); j++)
 		{
 			float Sum = 0;
-			const auto cubeCornerPos{ item.PointPositions[j] };
+			const auto cubeCornerPos{ item.Value.PointPositions[j] };
 
 			for (const AA_Metaball* metaBall : MetaBallObjects)
 			{
@@ -90,25 +91,25 @@ void UALG_MetaBall::Update()
 				Sum += InfluenceRadius / D;
 			}
 
-			item.PointValues[j] = Sum;
+			if (Sum > NoiseGenerator->ColorToWatch) {
+				item.Value.PointValues[j] = NoiseGenerator->white;
+			}
+			else {
+				item.Value.PointValues[j] = NoiseGenerator->black;
+			}
 			MinValue = FMath::Min(MinValue, Sum);
 			MaxValue = FMath::Max(MaxValue, Sum);
 		}
 	}
 
 
-	for (FMCCube& cube : NoiseGenerator->GridCubes)
-	{
-		for (size_t j = 0; j < cube.PointValues.Num(); j++) {
-			const int val{ RemapValue(cube.PointValues[j], MinValue, MaxValue, 0, 255) };
-			if (NoiseGenerator->IsMulticolor) {
-				cube.PointValues[j] = val;
-			}
-			else {
-				cube.PointValues[j] = val > NoiseGenerator->ColorToWatch ? NoiseGenerator->white : NoiseGenerator->black;
-			}
-		}
-	}
+	//for (auto& cube : NoiseGenerator->GridCubes)
+	//{
+	//	for (size_t j = 0; j < cube.Value.PointValues.Num(); j++) {
+	//		const int val{ RemapValue(cube.Value.PointValues[j], MinValue, MaxValue, 0, 255) };
+	//		cube.Value.PointValues[j] = val > NoiseGenerator->ColorToWatch ? NoiseGenerator->white : NoiseGenerator->black;
+	//	}
+	//}
 
 }
 

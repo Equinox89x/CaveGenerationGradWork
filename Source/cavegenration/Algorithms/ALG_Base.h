@@ -19,6 +19,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float DefaultTimer{ 1 };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool HasDirectNullValue{ false };
 
 	virtual void InitValues(FVector MinBoundary, FVector Maxboundary) {};
 	virtual void Cleanup() {};
@@ -45,7 +47,7 @@ protected:
 private:	
 
 protected:
-	TArray<TArray<int>> TriangulationTable =
+	const TArray<TArray<int>> TriangulationTable =
 	{ {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 	{0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 	{0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},

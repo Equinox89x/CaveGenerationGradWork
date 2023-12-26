@@ -7,7 +7,6 @@ struct FCustomInstanceData {
 	FColor Color{};
 };
 
-// Sets default values
 ANoiseGenerator::ANoiseGenerator()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -19,9 +18,11 @@ ANoiseGenerator::ANoiseGenerator()
 	RootComponent = ProcMesh;
 	ProcMesh->bUseAsyncCooking = true;
 
+	//NoiseGen = CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("NoiseGen"));
+	//NoiseGen->SetupFastNoise(EFastNoise_NoiseType::Perlin);
+
 }
 
-// Called when the game starts or when spawned
 void ANoiseGenerator::BeginPlay()
 {
 	Super::BeginPlay();
@@ -31,13 +32,15 @@ void ANoiseGenerator::BeginPlay()
 
 	DefaultTimer = 0.3;
 
-	AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [&]()
+	/*AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [&]()
 		{
 			CreateGrid();
 			CreateCubeGrid();
-
+			CheckValues();
 			CycleAlgorithm();
-		});
+		});*/
+
+	RegenerateGrid();
 }
 
 
@@ -52,7 +55,6 @@ void ANoiseGenerator::HandleComponentChange()
 		SelectedComponent = CellularAutomataComponent;
 		break;
 	case EAlgorithms::META_BALLS:
-		//IsMulticolor = true;
 		MarchingCubesComponent->Cleanup();
 
 		SelectedComponent = MetaBallsComponent;
@@ -72,7 +74,6 @@ void ANoiseGenerator::HandleComponentChange()
 		break;
 	}
 
-	//InitValues();
 	if (SelectedComponent) {
 		SelectedComponent->InitValues(MinBoundary, MaxBoundary);
 	}
@@ -97,7 +98,10 @@ void ANoiseGenerator::CreateGrid()
 
 		FScopeLock Lock(&CriticalSection);
 		McData.Locations.Add(pos);
-		const int State{ IsMulticolor ? FMath::Rand() : FMath::RandBool() ? white : black };
+		const float PerlinValue = FMath::PerlinNoise2D(FVector2D{ pos.X, pos.Z });
+		const int State{ FMath::RoundToInt(((PerlinValue + 1) / 2) * 255) };
+		//const int State{ finalPerlinValue < ColorToWatch ? white : black };
+		//const int State{ IsMulticolor ? FMath::Rand() : FMath::RandBool() ? white : black };
 		McData.Values.Add(State);
 	});
 
@@ -124,26 +128,28 @@ void ANoiseGenerator::CreateCubeGrid()
 		}
 
 		const FVector SpawnLocation = FVector{ i * (CubeSize * 2), j * (CubeSize * 2), k * (CubeSize * 2) };
-		const auto cube = FMCCube(SpawnLocation, CubeSize);
+		const auto cube = FMCCube(SpawnLocation, CubeSize, Index);
 		{
 			FScopeLock Lock(&CriticalSection);
 			for (int g = 0; g < cube.PointPositions.Num(); g++)
 			{
-				vertTable.Add(cube.PointPositions[g], FMCCubeIndex{ cube.PointPositions[g], Index, g });
+				vertTable.Add(cube.PointPositions[g], FMCCubeIndex{ cube.PointPositions[g], SpawnLocation, g });
 			}
 
-			GridCubes.Add(cube);
+			GridCubes.Add(SpawnLocation, cube);
 		}
 	});
 
+	TArray<FVector> keys;
+	GridCubes.GetKeys(keys);
 
-	MinBoundary = GridCubes[0].CubeLocation;
-	MaxBoundary = GridCubes[GridCubes.Num() - 1].CubeLocation;
+	MinBoundary = GridCubes[keys[0]].CubeLocation;
+	MaxBoundary = GridCubes[keys[GridCubes.Num() - 1]].CubeLocation;
 }
 
 bool ANoiseGenerator::CheckValues()
 {
-	FNoiseGeneratorWorker2* Worker = new FNoiseGeneratorWorker2(this, IsMulticolor, ColorToWatch);
+	FNoiseGeneratorWorker2* Worker = new FNoiseGeneratorWorker2(this);
 	FRunnableThread* Thread = FRunnableThread::Create(Worker, TEXT("NoiseGeneratorThread2"), 0, TPri_AboveNormal);
 	Thread->WaitForCompletion();
 
@@ -153,7 +159,11 @@ bool ANoiseGenerator::CheckValues()
 	return true;
 }
 
-// Called every frame
+float ANoiseGenerator::RemapValue(float Value, int OldMin, int OldMax, int NewMin, int NewMax)
+{
+	return (Value - OldMin) * (float(NewMax - NewMin) / float(OldMax - OldMin)) + NewMin;
+}
+
 void ANoiseGenerator::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -164,7 +174,6 @@ void ANoiseGenerator::Tick(float DeltaTime)
 		HandleComponentChange();
 	}
 
-	//Update();
 	if (!Task.IsValid()) {
 		if (SelectedComponent) {
 			SelectedComponent->Update();
@@ -193,16 +202,16 @@ void ANoiseGenerator::Draw()
 		}
 	}
 	else {
-		for (const FMCCube& cube : GridCubes)
+		for (const auto& cube : GridCubes)
 		{
 			if (DrawDebugAsBox) {
-				DrawDebugBox(GetWorld(), cube.CubeLocation, FVector{ CubeSize }, FColor::Red);
+				DrawDebugBox(GetWorld(), cube.Value.CubeLocation, FVector{ CubeSize }, FColor::Red);
 			}
 			else {
-				const auto positions{ cube.PointPositions };
+				const auto positions{ cube.Value.PointPositions };
 				for (size_t g = 0; g < positions.Num(); g++)
 				{
-					const uint8 color{ static_cast<uint8>(cube.PointValues[g])};
+					const uint8 color{ static_cast<uint8>(cube.Value.PointValues[g])};
 					DrawDebugPoint(GetWorld(), positions[g], 4, FColor{color, color, color});
 
 					FString txt{ };
@@ -226,14 +235,9 @@ void ANoiseGenerator::RegenerateGrid()
 	
 	Task = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
 		{
-		if (SelectedAlgorithm == EAlgorithms::CELLULAR_AUTOMATA) {
 			CreateGrid();
-		}
-		else {
 			CreateCubeGrid();
 			CheckValues();
-		}
-
 		HandleComponentChange();
 	},
 	TStatId(), nullptr, ENamedThreads::AnyBackgroundThreadNormalTask);
