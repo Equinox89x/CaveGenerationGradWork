@@ -4,10 +4,8 @@
 #include "ALG_MarchingCubes.h"
 #include <cavegenration/Generator/NoiseGenerator.h>
 
-// Sets default values
 UALG_MarchingCubes::UALG_MarchingCubes()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryComponentTick.bCanEverTick = true;
 
 }

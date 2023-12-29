@@ -14,13 +14,22 @@ class CAVEGENRATION_API UALG_MetaBall : public UALG_Base
 	GENERATED_BODY()
 
 public:	
-	// Sets default values for this component's properties
 	UALG_MetaBall();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<TSubclassOf<AA_Metaball>> MetaBalls{ nullptr };
+	TSubclassOf<AA_Metaball> MetaBallToSpawn{ nullptr };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float InfluenceRadius{ 20 };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int NrOfLayers{ 3 };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int NrOfBallsPerLayer{ 5 };	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int NrOfHeightBallsPerLayer{ 3 };	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MinRadius{ 1.5f };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool CanAssignValues{ false };
 
 	virtual void InitValues(FVector minBoundary, FVector maxBoundary);
 	virtual void Update();
@@ -29,6 +38,7 @@ public:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	TArray<TSubclassOf<AA_Metaball>> MetaBalls{ nullptr };
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -44,4 +54,5 @@ private:
 	bool IsPointInsideSphere(const FVector& Point, const FVector& SphereCenter, float SphereRadius);
 
 	float SphereSize{ 0 };
+	void GenerateMetaBalls();
 };

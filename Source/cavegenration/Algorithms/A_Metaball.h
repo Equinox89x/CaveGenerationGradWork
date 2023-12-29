@@ -17,9 +17,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UStaticMeshComponent* MetaballMesh{ nullptr };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float size{ 0.06 };
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MovementSpeed{ 300 };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool IsHeightBall{ false };
+	int LayerNr{ 0 };
 
 	void InitValues(FVector minBoundary, FVector maxBoundary, FVector spawnLocation);
 

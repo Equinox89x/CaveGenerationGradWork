@@ -5,13 +5,6 @@
 #include "CoreMinimal.h"
 
 UENUM()
-enum class ENoiseMaps {
-	PERLIN,
-	SIMPLEX,
-
-};
-
-UENUM()
 enum class EAlgorithms {
 	CELLULAR_AUTOMATA = 0,
 	META_BALLS = 1,
@@ -19,6 +12,12 @@ enum class EAlgorithms {
 	VORONOI = 3,
 	RANDOM_WALK = 4,
 	LSYSTEMS = 5,
+};
+
+UENUM()
+enum class ObjectType {
+	Floor,
+	Ceiling
 };
 
 //USTRUCT()

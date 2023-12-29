@@ -2,10 +2,7 @@
 
 
 #include "NoiseGenerator.h"
-
-struct FCustomInstanceData {
-	FColor Color{};
-};
+#include <Kismet/GameplayStatics.h>
 
 ANoiseGenerator::ANoiseGenerator()
 {
@@ -13,36 +10,21 @@ ANoiseGenerator::ANoiseGenerator()
 	CellularAutomataComponent = CreateDefaultSubobject<UALG_CellularAutomata>(TEXT("CellularAutomataComponent"));
 	MetaBallsComponent = CreateDefaultSubobject<UALG_MetaBall>(TEXT("MetaBallsComponent"));
 	MarchingCubesComponent = CreateDefaultSubobject<UALG_MarchingCubes>(TEXT("MarchingCubesComponent"));
-
-	ProcMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProcMesh"));
-	RootComponent = ProcMesh;
-	ProcMesh->bUseAsyncCooking = true;
-
-	//NoiseGen = CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("NoiseGen"));
-	//NoiseGen->SetupFastNoise(EFastNoise_NoiseType::Perlin);
-
 }
 
 void ANoiseGenerator::BeginPlay()
 {
 	Super::BeginPlay();
 
+	BiomeGenerator = Cast<ABiomeGenerator>(UGameplayStatics::GetActorOfClass(GetWorld(), ABiomeGenerator::StaticClass()));
+
 	GridSize = CubeGridSize * 2;
 	Offset = CubeSize / 2;
 
 	DefaultTimer = 0.3;
 
-	/*AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [&]()
-		{
-			CreateGrid();
-			CreateCubeGrid();
-			CheckValues();
-			CycleAlgorithm();
-		});*/
-
 	RegenerateGrid();
 }
-
 
 void ANoiseGenerator::HandleComponentChange()
 {
@@ -94,28 +76,70 @@ void ANoiseGenerator::CreateGrid()
 		const int j = (Index / int(GridSize.X)) % int(GridSize.Y);
 		const int k = Index / int(GridSize.X * GridSize.Y);
 
-		const FVector pos = FVector(i * Offset, j * Offset, k * Offset);
+		FVector pos = FVector(i * Offset, j * Offset, k * Offset);
 
 		FScopeLock Lock(&CriticalSection);
 		McData.Locations.Add(pos);
-		const float PerlinValue = FMath::PerlinNoise2D(FVector2D{ pos.X, pos.Z });
+		pos *= PerlinScale;
+		const float PerlinValue = FMath::PerlinNoise3D(pos);
 		const int State{ FMath::RoundToInt(((PerlinValue + 1) / 2) * 255) };
-		//const int State{ finalPerlinValue < ColorToWatch ? white : black };
-		//const int State{ IsMulticolor ? FMath::Rand() : FMath::RandBool() ? white : black };
-		McData.Values.Add(State);
+		if (State < BiomeGenerator->Treshold) {
+			McData.Values.Add(white);
+		}
+		else {
+			McData.Values.Add(black);
+		}
+		//McData.Values.Add(State);
 	});
 
-	if (TotalSize > 0)
-	{
-		MinBoundary = McData.Locations[0];
-		MaxBoundary = McData.Locations[TotalSize - 1];
-	}
+	//for (int x = 0; x < GridSize.X; ++x)
+	//{
+	//	for (int y = 0; y < GridSize.Y; ++y)
+	//	{
+	//		for (int z = 0; z < GridSize.Z; ++z)
+	//		{
+	//			TArray<int> indexes{
+	//				GetIndex(x, y, z),
+	//				GetIndex(x + 1, y, z),
+	//				GetIndex(x, y + 1, z),
+	//				GetIndex(x + 1, y + 1, z),
+	//				GetIndex(x, y, z + 1),
+	//				GetIndex(x + 1, y, z + 1),
+	//				GetIndex(x, y + 1, z + 1),
+	//				GetIndex(x + 1, y + 1, z + 1),
+	//			};
+
+	//			TArray<float> values;
+	//			for (const auto& index : indexes)
+	//			{
+	//				if (McData.Values.Num() > index) {
+	//					values.Add(McData.Values[index]);
+	//				}
+	//			}
+
+	//			// Calculate the 8-bit code representing the point's configuration
+	//			int PointConfigIndex{ 0 };
+	//			for (int j = 0; j < values.Num(); ++j)
+	//			{
+	//				if (values[j] > 0.5f)
+	//				{
+	//					PointConfigIndex |= 1 << j;
+	//				}
+	//			}
+	//			McData.configs.Add(PointConfigIndex);
+	//		}
+	//	}
+	//}
+
 }
 
 void ANoiseGenerator::CreateCubeGrid()
 {
+	auto size{ CubeGridSize.X * CubeGridSize.Y * CubeGridSize.Z };
 	GridCubes.Empty();
 	vertTable.Empty();
+	GridCubes.Reserve(size);
+	vertTable.Reserve(size*3);
 
 	ParallelFor(CubeGridSize.X * CubeGridSize.Y * CubeGridSize.Z, [&](int32 Index)
 	{
@@ -127,29 +151,58 @@ void ANoiseGenerator::CreateCubeGrid()
 			k = Index / int(CubeGridSize.X * CubeGridSize.Y);
 		}
 
-		const FVector SpawnLocation = FVector{ i * (CubeSize * 2), j * (CubeSize * 2), k * (CubeSize * 2) };
-		const auto cube = FMCCube(SpawnLocation, CubeSize, Index);
+		const FVector spawnLocation = FVector{ i * (CubeSize * 2), j * (CubeSize * 2), k * (CubeSize * 2) };
+		const auto cube = FMCCube(spawnLocation, CubeSize, Index);
 		{
 			FScopeLock Lock(&CriticalSection);
 			for (int g = 0; g < cube.PointPositions.Num(); g++)
 			{
-				vertTable.Add(cube.PointPositions[g], FMCCubeIndex{ cube.PointPositions[g], SpawnLocation, g });
+				vertTable.Add(cube.PointPositions[g], FMCCubeIndex{ cube.PointPositions[g], spawnLocation, g });
 			}
 
-			GridCubes.Add(SpawnLocation, cube);
+			GridCubes.Add(spawnLocation, cube);
 		}
 	});
 
 	TArray<FVector> keys;
 	GridCubes.GetKeys(keys);
 
-	MinBoundary = GridCubes[keys[0]].CubeLocation;
-	MaxBoundary = GridCubes[keys[GridCubes.Num() - 1]].CubeLocation;
+	FVector SmallestVector;
+	float SmallestMagnitude = TNumericLimits<float>::Max();  // Initialize with the highest possible value
+
+	for (const FVector& CurrentVector : keys)
+	{
+		float CurrentMagnitude = CurrentVector.Size();
+
+		if (CurrentMagnitude < SmallestMagnitude)
+		{
+			SmallestMagnitude = CurrentMagnitude;
+			SmallestVector = CurrentVector;
+		}
+	}
+
+	MinBoundary = SmallestVector;
+
+	FVector LargestVector;
+	float LargestMagnitude = 0.0f;  // Initialize with the lowest possible magnitude
+
+	for (const FVector& CurrentVector : keys)
+	{
+		float CurrentMagnitude = CurrentVector.Size();
+
+		if (CurrentMagnitude > LargestMagnitude)
+		{
+			LargestMagnitude = CurrentMagnitude;
+			LargestVector = CurrentVector;
+		}
+	}
+
+	MaxBoundary = LargestVector;
 }
 
 bool ANoiseGenerator::CheckValues()
 {
-	FNoiseGeneratorWorker2* Worker = new FNoiseGeneratorWorker2(this);
+	FNoiseGeneratorWorker2* Worker = new FNoiseGeneratorWorker2(this, BiomeGenerator);
 	FRunnableThread* Thread = FRunnableThread::Create(Worker, TEXT("NoiseGeneratorThread2"), 0, TPri_AboveNormal);
 	Thread->WaitForCompletion();
 
@@ -162,6 +215,11 @@ bool ANoiseGenerator::CheckValues()
 float ANoiseGenerator::RemapValue(float Value, int OldMin, int OldMax, int NewMin, int NewMax)
 {
 	return (Value - OldMin) * (float(NewMax - NewMin) / float(OldMax - OldMin)) + NewMin;
+}
+
+void ANoiseGenerator::HandlePreMeshGen()
+{
+	SelectedComponent->HandlePreMeshGen();
 }
 
 void ANoiseGenerator::Tick(float DeltaTime)
@@ -178,6 +236,7 @@ void ANoiseGenerator::Tick(float DeltaTime)
 		if (SelectedComponent) {
 			SelectedComponent->Update();
 		}
+		if (!CanDrawGrid) return;
 		Draw();
 	}
 	else {
@@ -185,6 +244,7 @@ void ANoiseGenerator::Tick(float DeltaTime)
 			if (SelectedComponent) {
 				SelectedComponent->Update();
 			}
+			if (!CanDrawGrid) return;
 			Draw();
 		}
 	}
@@ -192,7 +252,9 @@ void ANoiseGenerator::Tick(float DeltaTime)
 
 void ANoiseGenerator::Draw()
 {
-	if (!CanDraw) return;
+	if (CanDrawBoundaries) {		
+		//DrawDebugBox(GetWorld(), ProcMesh->Bounds.Origin, ProcMesh->Bounds.BoxExtent, FColor::Red);
+	}
 	if (ShowOldGrid) {
 		int i{ 0 };
 		for (const auto value : McData.Values) {
@@ -202,7 +264,7 @@ void ANoiseGenerator::Draw()
 		}
 	}
 	else {
-		for (const auto& cube : GridCubes)
+		for (auto& cube : GridCubes)
 		{
 			if (DrawDebugAsBox) {
 				DrawDebugBox(GetWorld(), cube.Value.CubeLocation, FVector{ CubeSize }, FColor::Red);
@@ -211,12 +273,17 @@ void ANoiseGenerator::Draw()
 				const auto positions{ cube.Value.PointPositions };
 				for (size_t g = 0; g < positions.Num(); g++)
 				{
-					const uint8 color{ static_cast<uint8>(cube.Value.PointValues[g])};
+					const uint8 color{ static_cast<uint8>(DrawBiomePoints ? cube.Value.BiomeValues[g] : cube.Value.PointValues[g]) };
 					DrawDebugPoint(GetWorld(), positions[g], 4, FColor{color, color, color});
+				}
 
-					FString txt{ };
-					txt.AppendInt(g);
-					DrawDebugString(GetWorld(), positions[g], txt, this, FColor::Red);
+				if (DrawAllPoints) {
+					cube.Value.Update();
+					const auto positions2{ cube.Value.TrianglePointPositions };
+					for (size_t g = 0; g < positions2.Num(); g++)
+					{
+						DrawDebugPoint(GetWorld(), positions2[g].Position, 4, FColor::Red);
+					}
 				}
 			}
 		}
@@ -224,20 +291,16 @@ void ANoiseGenerator::Draw()
 }
 
 #pragma region UI
-void ANoiseGenerator::GenerateMesh() {
-	if (SelectedComponent) {
-		SelectedComponent->GenerateMesh();
-	}
-}
-
 void ANoiseGenerator::RegenerateGrid()
 {
 	
 	Task = FFunctionGraphTask::CreateAndDispatchWhenReady([&]()
-		{
-			CreateGrid();
-			CreateCubeGrid();
+	{
+		CreateGrid();
+		CreateCubeGrid();
+		if (SelectedComponent != MetaBallsComponent) {
 			CheckValues();
+		}
 		HandleComponentChange();
 	},
 	TStatId(), nullptr, ENamedThreads::AnyBackgroundThreadNormalTask);

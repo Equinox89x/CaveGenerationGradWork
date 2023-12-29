@@ -11,8 +11,8 @@ AA_Metaball::AA_Metaball()
 
 	MetaballMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MetaballMesh"));
 
-    size = FMath::RandRange(0.2, 0.8);
     CurrentVelocity = FMath::VRand();
+    if (!IsHeightBall) CurrentVelocity.Z = 0;
 }
 
 // Called when the game starts or when spawned
@@ -32,7 +32,7 @@ void AA_Metaball::InitValues(FVector minBoundary, FVector maxBoundary, FVector s
 {
     SetActorLocation(spawnLocation);
     SetArea(minBoundary, maxBoundary);
-    SetActorScale3D(FVector(size));
+    SetActorScale3D(FVector(0.2));
 }
 
 void AA_Metaball::Tick(float DeltaTime)
@@ -57,7 +57,7 @@ void AA_Metaball::Tick(float DeltaTime)
     {
         CurrentVelocity.Z *= -1;
         NewLocation.Z += 50 * CurrentVelocity.Z;
-    }    
+    }
 
     SetActorLocation(NewLocation);
 }
