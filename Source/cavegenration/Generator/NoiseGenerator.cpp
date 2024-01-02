@@ -139,30 +139,30 @@ void ANoiseGenerator::CreateCubeGrid()
 	GridCubes.Empty();
 	vertTable.Empty();
 	GridCubes.Reserve(size);
-	vertTable.Reserve(size*3);
+	vertTable.Reserve(size * 3);
 
 	ParallelFor(CubeGridSize.X * CubeGridSize.Y * CubeGridSize.Z, [&](int32 Index)
-	{
-		int i, j, k;
 		{
-			FScopeLock Lock(&CriticalSection);
-			i = Index % int(CubeGridSize.X);
-			j = (Index / int(CubeGridSize.X)) % int(CubeGridSize.Y);
-			k = Index / int(CubeGridSize.X * CubeGridSize.Y);
-		}
-
-		const FVector spawnLocation = FVector{ i * (CubeSize * 2), j * (CubeSize * 2), k * (CubeSize * 2) };
-		const auto cube = FMCCube(spawnLocation, CubeSize, Index);
-		{
-			FScopeLock Lock(&CriticalSection);
-			for (int g = 0; g < cube.PointPositions.Num(); g++)
+			int i, j, k;
 			{
-				vertTable.Add(cube.PointPositions[g], FMCCubeIndex{ cube.PointPositions[g], spawnLocation, g });
+				FScopeLock Lock(&CriticalSection);
+				i = Index % int(CubeGridSize.X);
+				j = (Index / int(CubeGridSize.X)) % int(CubeGridSize.Y);
+				k = Index / int(CubeGridSize.X * CubeGridSize.Y);
 			}
 
-			GridCubes.Add(spawnLocation, cube);
-		}
-	});
+			const FVector spawnLocation = FVector{ i * (CubeSize * 2), j * (CubeSize * 2), k * (CubeSize * 2) };
+			const auto cube = FMCCube(spawnLocation, CubeSize, Index);
+			{
+				FScopeLock Lock(&CriticalSection);
+				for (int g = 0; g < cube.PointPositions.Num(); g++)
+				{
+					vertTable.Add(cube.PointPositions[g], FMCCubeIndex{ cube.PointPositions[g], spawnLocation, g });
+				}
+
+				GridCubes.Add(spawnLocation, cube);
+			}
+		});
 
 	TArray<FVector> keys;
 	GridCubes.GetKeys(keys);
@@ -198,6 +198,83 @@ void ANoiseGenerator::CreateCubeGrid()
 	}
 
 	MaxBoundary = LargestVector;
+
+	BiomeGenerator->InitBiomeLayers(MinBoundary, MaxBoundary);
+
+	GenerateWall();
+}
+
+void ANoiseGenerator::GenerateWall()
+{
+	auto newMin{ MinBoundary };
+	newMin -= FVector(CubeSize);
+	auto newMax{ MaxBoundary };
+	newMax += FVector(CubeSize);
+	GridCubesForWall = new FMCWall(newMin, MaxBoundary);
+
+	//FVector FarEndCorners[8];
+	//FarEndCorners[0] = FVector(MinBoundary);
+	//FarEndCorners[1] = FVector(MinBoundary.X, MaxBoundary.Y, MinBoundary.Z);
+	//FarEndCorners[2] = FVector(MaxBoundary.X, MinBoundary.Y, MinBoundary.Z);
+	//FarEndCorners[3] = FVector(MaxBoundary.X, MaxBoundary.Y, MinBoundary.Z);
+	//
+	//FarEndCorners[4] = FVector(MaxBoundary);
+	//FarEndCorners[5] = FVector(MinBoundary.X, MaxBoundary.Y, MaxBoundary.Z);
+	//FarEndCorners[6] = FVector(MaxBoundary.X, MinBoundary.Y, MaxBoundary.Z);
+	//FarEndCorners[7] = FVector(MaxBoundary.X, MaxBoundary.Y, MaxBoundary.Z);
+
+	//TArray<FVector> Vertices;
+	//TArray<int32> Triangles;
+
+	//int32 Indices[36] = {
+	//	0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 0, 4, 7, 0, 7, 3, 1, 5, 6, 1, 6, 2, 3, 7, 6, 3, 6, 2, 0, 4, 5, 0, 5, 1
+	//};
+
+	//for (int i = 0; i < 36; ++i) {
+	//	Triangles.Add(Indices[i]);
+	//}
+
+	//ProceduralMeshComponent->CreateMeshSection(0, Vertices, Triangles, TArray<FVector>(), TArray<FVector2D>(), TArray<FColor>(), TArray<FProcMeshTangent>(), true);
+
+	//const int z{ 1 };
+	//GridCubesForWall.Empty();
+	//GridCubesForWall.Reserve(CubeGridSize.X * CubeGridSize.Y * (z * 2));
+
+	//// top-bottom, front-back, left-right
+	//const TArray<TArray<int>> PointValueIndexes{ {4,5,6,7}, {4,5,6,7}, {0,3,4,7},  {0,3,4,7}, {0,1,4,5}, {0,1,4,5} };
+
+	//for (size_t Index = 0; Index < CubeGridSize.X * CubeGridSize.Y * z; Index++)
+	//{
+	//	int i = Index % int(CubeGridSize.X);
+	//	int j = (Index / int(CubeGridSize.X)) % int(CubeGridSize.Y);
+	//	int k = Index / int(CubeGridSize.X * CubeGridSize.Y);
+
+	//	FVector spawnLocations[6];
+	//	spawnLocations[0] = FVector{ i * (CubeSize * 2), j * (CubeSize * 2), k * (CubeSize * 2) };
+	//	spawnLocations[0].Z -= CubeSize;
+	//	spawnLocations[1] = FVector{ i * (CubeSize * 2), j * (CubeSize * 2), k * (CubeSize * 2) };
+	//	spawnLocations[1].Z += (CubeGridSize.X - 1) * CubeSize;
+	//	spawnLocations[2] = FVector{ k * (CubeSize * 2), i * (CubeSize * 2), j * (CubeSize * 2) };
+	//	spawnLocations[2].X += (CubeGridSize.X * 2 - 1) * CubeSize;
+	//	spawnLocations[3] = FVector{ k * (CubeSize * 2), i * (CubeSize * 2), j * (CubeSize * 2) };
+	//	spawnLocations[3].X -= CubeSize;
+	//	spawnLocations[4] = FVector{ i * (CubeSize * 2), k * (CubeSize * 2), j * (CubeSize * 2) };
+	//	spawnLocations[4].Y -= CubeSize;
+	//	spawnLocations[5] = FVector{ i * (CubeSize * 2), k * (CubeSize * 2), j * (CubeSize * 2) };
+	//	spawnLocations[5].Y += (CubeGridSize.Y * 2 - 1) * CubeSize;
+
+
+	//	for (int dir = 0; dir < 6; ++dir)
+	//	{
+	//		auto cube = FMCCube(spawnLocations[dir], CubeSize, Index);
+
+	//		for (size_t pointIndex = 0; pointIndex < PointValueIndexes[dir].Num(); pointIndex++)
+	//		{
+	//			cube.PointValues[PointValueIndexes[dir][pointIndex]] = 255;
+	//		}
+	//		GridCubesForWall.Add(spawnLocations[dir], cube);
+	//	}
+	//}
 }
 
 bool ANoiseGenerator::CheckValues()

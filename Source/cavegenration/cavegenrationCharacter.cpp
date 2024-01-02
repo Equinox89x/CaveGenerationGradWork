@@ -53,6 +53,17 @@ void AcavegenrationCharacter::BeginPlay()
 
 }
 
+void AcavegenrationCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (IsGrappling) {
+		FVector direction{ (GrappleLocation - GetActorLocation()).GetSafeNormal() };
+		FVector NewLocation = GetActorLocation() + direction * (DeltaTime * MovementSpeed);
+		SetActorLocation(NewLocation);
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////// Input
 
 void AcavegenrationCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -69,6 +80,9 @@ void AcavegenrationCharacter::SetupPlayerInputComponent(class UInputComponent* P
 
 		//Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AcavegenrationCharacter::Look);
+
+		EnhancedInputComponent->BindAction(GrappleAction, ETriggerEvent::Triggered, this, &AcavegenrationCharacter::StartGrapple);
+		EnhancedInputComponent->BindAction(GrappleAction, ETriggerEvent::Completed, this, &AcavegenrationCharacter::StopGrapple);
 	}
 }
 
@@ -97,6 +111,35 @@ void AcavegenrationCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
+}
+
+void AcavegenrationCharacter::StartGrapple()
+{
+	if (!IsGrappling)
+	{
+		FVector CameraLocation = FirstPersonCameraComponent->GetComponentLocation();
+		FVector CameraForwardVector = FirstPersonCameraComponent->GetForwardVector();
+
+		FHitResult HitResult;
+		FCollisionQueryParams CollisionParams;
+		CollisionParams.AddIgnoredActor(this);
+
+		FVector GrappleEnd = CameraLocation + CameraForwardVector * GrappleMaxDistance;
+
+		if (GetWorld()->LineTraceSingleByChannel(HitResult, CameraLocation, GrappleEnd, ECC_Visibility, CollisionParams))
+		{
+			// Hook something, handle accordingly (e.g., attach the character to the hit result)
+			IsGrappling = true;
+			// Implement your grapple logic here.
+			GrappleLocation = HitResult.ImpactPoint;
+		}
+	}
+}
+
+void AcavegenrationCharacter::StopGrapple()
+{
+	IsGrappling = false;
+	GrappleLocation = GetActorLocation();
 }
 
 void AcavegenrationCharacter::SetHasRifle(bool bNewHasRifle)

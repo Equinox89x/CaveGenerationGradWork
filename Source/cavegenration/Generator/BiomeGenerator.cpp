@@ -2,6 +2,7 @@
 
 
 #include "BiomeGenerator.h"
+#include "NoiseGenerator.h"
 
 ABiomeGenerator::ABiomeGenerator()
 {
@@ -29,8 +30,24 @@ void ABiomeGenerator::InitNoise() {
 }
 
 int ABiomeGenerator::GetBiomeNoise(FVector position) {
-	auto biomeValue{ FastNoise.GetNoise(position.X, position.Y) };
+	auto biomeValue{ FastNoise.GetNoise(position.X, position.Y, position.Z) };
 	return FMath::RoundToInt((((biomeValue + 1) / 2) * 255) * NoiseMultiplier);
+}
+
+void ABiomeGenerator::InitBiomeLayers(FVector minBoundary, FVector maxBoundary)
+{
+	FVector dimensions{ maxBoundary - minBoundary };
+	float heightToSpawn{ static_cast<float>(dimensions.Z) / NrOfBiomeLayers };
+	float calculatedHeight{ static_cast<float>(minBoundary.Z) };
+
+	for (size_t i = 0; i < NrOfBiomeLayers; i++)
+	{
+		const auto zLoc{ minBoundary.Z + calculatedHeight };
+		const auto zLocMin{ zLoc };
+		const auto zLocMax{ zLoc + heightToSpawn };
+		calculatedHeight += heightToSpawn;
+		BiomeLayers.Add({ i, FVector2D{ zLocMin, zLocMax } });
+	}
 }
 
 void ABiomeGenerator::CreateFloorAndCeiling(FVector Vertex0, FVector Vertex1, FVector Vertex2, FVector color)
@@ -60,7 +77,7 @@ void ABiomeGenerator::GenerateBiome()
 	}
 	for (const auto& item : CeilingLocations) {
 		FVector loc{ item.Key };
-		loc.Z -= InstancedCeilingMesh->GetStaticMesh()->GetBounds().BoxExtent.Z;
+		loc.Z -= InstancedCeilingMesh->GetStaticMesh()->GetBounds().BoxExtent.Z/2;
 
 		FTransform trans{};
 		trans.SetLocation(loc);
@@ -155,32 +172,46 @@ float ABiomeGenerator::FindClosestFloat(float TargetNumber, bool isDirectAccess)
 	return ClosestFloat;
 }
 
-FBiome ABiomeGenerator::GetSelectedBiome(const TArray<float>& biomeValues)
+FBiome& ABiomeGenerator::GetSelectedBiome(const FMCCube& cube, bool isFixedValueBiome)
 {
-	TMap<float, int32> ValueCountMap;
+	TArray<float> keys;
+	UsableColors.GetKeys(keys);
+	if (isFixedValueBiome) {
+		for (const auto& pair : BiomeLayers) {
+			const FVector2D minMax{ pair.Value };
+			if (cube.CubeLocation.Z >= minMax.X && cube.CubeLocation.Z <= minMax.Y) {
 
-	for (float Value : biomeValues)
-	{
-		if (ValueCountMap.Contains(Value))
-		{
-			ValueCountMap[Value]++;
-		}
-		else
-		{
-			ValueCountMap.Add(Value, 1);
+				return UsableColors[keys[pair.Key]];
+			}
 		}
 	}
+	else {
+		TMap<float, int32> ValueCountMap;
 
-	float MostFrequentValue;
-	int MaxCount{ 0 };
-	for (const auto& Pair : ValueCountMap)
-	{
-		if (Pair.Value > MaxCount)
+		for (float Value : cube.BiomeValues)
 		{
-			MaxCount = Pair.Value;
-			MostFrequentValue = Pair.Key;
+			if (ValueCountMap.Contains(Value))
+			{
+				ValueCountMap[Value]++;
+			}
+			else
+			{
+				ValueCountMap.Add(Value, 1);
+			}
 		}
-	}
 
-	return UsableColors[MostFrequentValue];
+		float MostFrequentValue;
+		int MaxCount{ 0 };
+		for (const auto& Pair : ValueCountMap)
+		{
+			if (Pair.Value > MaxCount)
+			{
+				MaxCount = Pair.Value;
+				MostFrequentValue = Pair.Key;
+			}
+		}
+
+		return UsableColors[MostFrequentValue];
+	}
+	return UsableColors[keys[0]];
 }

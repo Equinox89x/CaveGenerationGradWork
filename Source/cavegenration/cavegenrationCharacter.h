@@ -37,7 +37,11 @@ class AcavegenrationCharacter : public ACharacter
 
 	/** Move Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	class UInputAction* MoveAction;
+	class UInputAction* MoveAction;	
+	
+	/** Grapple Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
+	class UInputAction* GrappleAction;
 
 	
 public:
@@ -45,16 +49,20 @@ public:
 
 protected:
 	virtual void BeginPlay();
+	virtual void Tick(float DeltaTime);
 
 public:
 		
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon)
+	bool bHasRifle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon)
+	float GrappleMaxDistance{ 3000 };
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon)
+	float MovementSpeed{ 200 };
+
 	/** Look Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* LookAction;
-
-	/** Bool for AnimBP to switch to another animation set */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon)
-	bool bHasRifle;
 
 	/** Setter to set the bool */
 	UFUNCTION(BlueprintCallable, Category = Weapon)
@@ -71,6 +79,9 @@ protected:
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
+	void StartGrapple();
+	void StopGrapple();
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
@@ -82,6 +93,8 @@ public:
 	/** Returns FirstPersonCameraComponent subobject **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
-
+private:
+	bool IsGrappling{ false };
+	FVector GrappleLocation{};
 };
 

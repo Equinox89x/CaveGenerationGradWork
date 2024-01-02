@@ -8,6 +8,8 @@
 #include <cavegenration/noise/FastNoise.h>
 #include "../GameEnums.h"
 #include "BiomeGenerator.generated.h"
+class NoiseGenerator;
+struct FMCCube;
 
 USTRUCT(BlueprintType)
 struct FBiome {
@@ -35,8 +37,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BiomeNoise)
 	float NoiseMultiplier{ 0.1 };	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BiomeNoise)
-	float NoiseMultiplier2{ 2 };
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BiomeNoise)
 	int Treshold{ 30 };		
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BiomeNoise)
 	TArray<FBiome> BiomeMaterials;
@@ -49,6 +49,10 @@ public:
 	UInstancedStaticMeshComponent* InstancedFloorMesh;	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = CeilingAndFloor)
 	UInstancedStaticMeshComponent* InstancedCeilingMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BiomeGeneation)
+	int NrOfBiomeLayers{3};	
+
 
 	UFUNCTION(BlueprintCallable)
 	void GenerateBiome();		
@@ -63,19 +67,22 @@ public:
 	void Reset();
 	void FillColorArr();
 	float FindClosestFloat(float TargetNumber, bool isDirectAccess = false);
-	FBiome GetSelectedBiome(const TArray<float>& biomeValues);
+	FBiome& GetSelectedBiome(const FMCCube& cube, bool isFixedValueBiome = false);
 	void InitNoise();
 	int GetBiomeNoise(FVector position);
+	void InitBiomeLayers(FVector minBoundary, FVector maxBoundary);
+	FastNoiseLite::NoiseType SelectedNoise{ FastNoiseLite::NoiseType_OpenSimplex2 };
 
 protected:
 	virtual void BeginPlay() override;
 
 private:	
 	FastNoiseLite FastNoise{};
-	FastNoiseLite::NoiseType SelectedNoise{ FastNoiseLite::NoiseType_OpenSimplex2 };
 
 	int NrOfColors{ 4 };	
 	TMap<float, FBiome> UsableColors;
+
+	TMap<int, FVector2D> BiomeLayers{};
 
 	TMap<FVector, FVector> CeilingLocations;
 	TMap<FVector, FVector> FloorLocations;

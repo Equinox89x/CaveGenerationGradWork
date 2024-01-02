@@ -138,6 +138,42 @@ struct FMCData {
 	UPROPERTY(BlueprintReadWrite)
 	TArray<int> Values;
 };
+
+USTRUCT(BlueprintType)
+struct FMCWall {
+
+	GENERATED_BODY()
+
+	FMCWall() {}
+	FMCWall(FVector MinBoundary, FVector MaxBoundary) {
+
+		Indices = {
+			0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 4, 6, 0, 6, 2, 1, 5, 7, 1, 7, 3, 0, 4, 5, 0, 5, 1, 2, 6, 7, 2, 7, 3
+		};
+
+		Vertices = {
+			FVector(MinBoundary.X, MinBoundary.Y, MinBoundary.Z),
+			FVector(MaxBoundary.X, MinBoundary.Y, MinBoundary.Z),
+			FVector(MinBoundary.X, MaxBoundary.Y, MinBoundary.Z),
+			FVector(MaxBoundary.X, MaxBoundary.Y, MinBoundary.Z),
+			FVector(MinBoundary.X, MinBoundary.Y, MaxBoundary.Z),
+			FVector(MaxBoundary.X, MinBoundary.Y, MaxBoundary.Z),
+			FVector(MinBoundary.X, MaxBoundary.Y, MaxBoundary.Z),
+			FVector(MaxBoundary.X, MaxBoundary.Y, MaxBoundary.Z)
+		};
+
+		for (int i = 0; i < 36; ++i) {
+			Triangles.Add(Indices[i]);
+		}
+	}
+
+	UPROPERTY(BlueprintReadWrite)
+	TArray<FVector> Vertices;
+	UPROPERTY(BlueprintReadWrite)
+	TArray<int32> Triangles;
+
+	TArray<int> Indices;
+};
 #pragma endregion
 
 UCLASS()
@@ -171,9 +207,10 @@ public:
 	float PerlinScale{ 0.1f };	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	float ZOffset{ 1000 };
-	//TODO add a var like MinAirValue, but for the ground level part of a biome (ground goes up until 2 points above) keep into account the nr of layers (this means multiple floors/ceilings)
-	//TODO add a var like MaxAirValue, but for the ceiling level part of a biome (ground goes up until 2 points above)
-	// OR calculate the faces that look down to generate ceiling stuff, and floor stuff for faces looking up (forward vector of a triangle?).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	FVector Seed{ 1337, 1337, 1337 };
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	//float Frequency{ 1 };
 	#pragma endregion
 
 	#pragma region grid
@@ -228,6 +265,7 @@ public:
 	TMultiMap<FVector, FMCCubeIndex> vertTable{};
 	TMap<FVector, FMCCube> GridCubes{ };	
 	TMap<FVector, FMCCube> GridCubesForMesh{ };	
+	FMCWall* GridCubesForWall{ };
 
 	ABiomeGenerator* BiomeGenerator{ nullptr };
 	#pragma endregion
@@ -249,7 +287,7 @@ private:
 	FGraphEventRef Task{};
 
 	void Draw();
-
+	void GenerateWall();
 };
 
 class FNoiseGeneratorWorker2 : public FRunnable
@@ -267,6 +305,12 @@ public:
 
 	virtual uint32 Run() override
 	{
+		//FastNoiseLite fastNoise{};
+		//fastNoise.SetNoiseType(BiomeGenerator->SelectedNoise);
+		//fastNoise.SetSeed(NoiseGenerator->Seed);
+		//fastNoise.SetFrequency(NoiseGenerator->Frequency);
+		//fastNoise.SetFractalType(FastNoiseLite::FractalType_None);
+
 		BiomeGenerator->InitNoise();
 		BiomeGenerator->FillColorArr();
 
@@ -279,10 +323,18 @@ public:
 			NoiseGenerator->vertTable.MultiFind(keys[0], OutValues);
 
 			//Perlin noise for cave gen
-			FVector PointPosition{ keys[0] };
+			FVector PointPosition{ keys[0] + NoiseGenerator->Seed };
+
 			PointPosition *= NoiseGenerator->PerlinScale;
+			int32 RandomSeed = FMath::Rand();
 			const float PerlinValue{ FMath::PerlinNoise3D(PointPosition) };
 			const int State{ FMath::RoundToInt(((PerlinValue + 1) / 2) * 255) };
+
+
+			//auto biomeValue{ fastNoise.GetNoise(PointPosition.X, PointPosition.Y, PointPosition.Z) };
+			//const int State{ FMath::RoundToInt((((biomeValue + 1) / 2) * 255) * NoiseGenerator->PerlinScale) };
+
+
 
 			//Other noise for biome gen
 			const int biomeState{ BiomeGenerator->GetBiomeNoise(PointPosition) };

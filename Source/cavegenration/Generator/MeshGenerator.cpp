@@ -3,6 +3,13 @@
 
 #include "MeshGenerator.h"
 #include <Kismet/GameplayStatics.h>
+#include "PackageTools.h"
+#include "Misc/PackageName.h"
+#include <AssetRegistry/AssetRegistryModule.h>
+#include <AssetToolsModule.h>
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "UObject/SavePackage.h"
 
 AMeshGenerator::AMeshGenerator()
 {
@@ -10,6 +17,7 @@ AMeshGenerator::AMeshGenerator()
 
 	ProcMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProcMesh"));
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
+	OuterWallComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("OuterWallComponent"));
 	RootComponent = ProcMesh;
 	ProcMesh->bUseAsyncCooking = true;
 }
@@ -34,7 +42,57 @@ void AMeshGenerator::GenerateMesh()
 	ProcMesh->ClearAllMeshSections();
 	BiomeGenerator->Reset();
 
-	//Marching Cubes Algorithm
+	/*TArray<TMap<FVector, FMCCube>*> GridCubesArray {
+	   &NoiseGenerator->GridCubesForMesh,
+	   &NoiseGenerator->GridCubesForWall
+	};
+
+	for (const TMap<FVector, FMCCube>* gridCubesPair : GridCubesArray)
+	{
+		for (const auto& cube : *gridCubesPair)
+		{
+			TArray<FVector> Vertices;
+			TArray<int> Triangles;
+
+			int CubeConfigIndex{ 0 };
+			for (int i = 0; i < 8; ++i)
+			{
+				if (cube.Value.PointValues[i] > 0.5f)
+				{
+					CubeConfigIndex |= 1 << i;
+				}
+			}
+
+			const FBiome& selectedBiome{ BiomeGenerator->GetSelectedBiome(cube.Value, IsFixedValueBiome) };
+
+			for (int i = 0; TriangulationTable[CubeConfigIndex][i] != -1; i += 3)
+			{
+				const int VertexIndex0{ TriangulationTable[CubeConfigIndex][i] };
+				const int VertexIndex1{ TriangulationTable[CubeConfigIndex][i + 1] };
+				const int VertexIndex2{ TriangulationTable[CubeConfigIndex][i + 2] };
+
+				const FVector Vertex0{ cube.Value.TrianglePointPositions[VertexIndex0].Position };
+				const FVector Vertex1{ cube.Value.TrianglePointPositions[VertexIndex1].Position };
+				const FVector Vertex2{ cube.Value.TrianglePointPositions[VertexIndex2].Position };
+
+				Vertices.Add(Vertex2);
+				Vertices.Add(Vertex1);
+				Vertices.Add(Vertex0);
+
+				Triangles.Add(Vertices.Num() - 3);
+				Triangles.Add(Vertices.Num() - 2);
+				Triangles.Add(Vertices.Num() - 1);
+
+				BiomeGenerator->CreateFloorAndCeiling(Vertex0, Vertex1, Vertex2, selectedBiome.Color);
+			}
+
+			ProcMesh->CreateMeshSection(index, Vertices, Triangles, TArray<FVector>{}, TArray<FVector2D>{}, TArray<FColor>{}, TArray<FProcMeshTangent>{}, true);
+			ProcMesh->SetMaterial(index, selectedBiome.Wall);
+			index++;
+		}
+	}*/
+
+	// Marching Cubes Algorithm
 	for (const auto& cube : NoiseGenerator->GridCubesForMesh)
 	{
 		TArray<FVector> Vertices;
@@ -50,8 +108,8 @@ void AMeshGenerator::GenerateMesh()
 			}
 		}
 
-		//detect what biome to spawn
-		const auto& selectedBiome{ BiomeGenerator->GetSelectedBiome(cube.Value.BiomeValues) };
+		// Detect what biome to spawn
+		const FBiome& selectedBiome{ BiomeGenerator->GetSelectedBiome(cube.Value, IsFixedValueBiome) };
 
 		for (int i = 0; TriangulationTable[CubeConfigIndex][i] != -1; i += 3)
 		{
@@ -63,9 +121,10 @@ void AMeshGenerator::GenerateMesh()
 			const FVector Vertex1{ cube.Value.TrianglePointPositions[VertexIndex1].Position };
 			const FVector Vertex2{ cube.Value.TrianglePointPositions[VertexIndex2].Position };
 
-			Vertices.Add(Vertex0);
-			Vertices.Add(Vertex1);
+			// To flip faces, switch the vertex order (Vertex0, 1 ,2)
 			Vertices.Add(Vertex2);
+			Vertices.Add(Vertex1);
+			Vertices.Add(Vertex0);
 
 			Triangles.Add(Vertices.Num() - 3);
 			Triangles.Add(Vertices.Num() - 2);
@@ -78,7 +137,11 @@ void AMeshGenerator::GenerateMesh()
 		ProcMesh->SetMaterial(index, selectedBiome.Wall);
 
 		index++;
-	}
+	}	
+
+	//Generate walls/floors
+	ProcMesh->CreateMeshSection(index-1, NoiseGenerator->GridCubesForWall->Vertices, NoiseGenerator->GridCubesForWall->Triangles, TArray<FVector>{}, TArray<FVector2D>{}, TArray<FColor>{}, TArray<FProcMeshTangent>{}, true);
+	//ProcMesh->SetMaterial(index, selectedBiome.Wall);
 
 	UStaticMesh* GeneratedStaticMesh = GenerateStaticMesh();
 	StaticMeshComponent->SetStaticMesh(GeneratedStaticMesh);
@@ -94,7 +157,6 @@ UStaticMesh* AMeshGenerator::GenerateStaticMesh()
 		// Create StaticMesh object
 		UStaticMesh* StaticMesh{ NewObject<UStaticMesh>(ProcMesh) };
 		StaticMesh->InitResources();
-
 		StaticMesh->SetLightingGuid();
 
 		// Add source to new StaticMesh
@@ -112,7 +174,7 @@ UStaticMesh* AMeshGenerator::GenerateStaticMesh()
 		NewBodySetup->CollisionTraceFlag = CTF_UseComplexAsSimple;
 		NewBodySetup->CreatePhysicsMeshes();
 
-		// materials
+		// Materials
 		TSet<UMaterialInterface*> UniqueMaterials;
 		for (int32 i = 0; i < ProcMesh->GetNumSections(); i++)
 		{
@@ -127,9 +189,44 @@ UStaticMesh* AMeshGenerator::GenerateStaticMesh()
 			StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material));
 		}
 
+		//// Save the mesh
+		//FString AssetName = TEXT("GeneratedMesh");
+		//FString PackagePath = FString::Printf(TEXT("/Game/GeneratedMeshes"));
+		//FString MeshPackageName = FPackageName::ObjectPathToPackageName(PackagePath / AssetName);
 
-		// Uncallable in game runtime
-		// StaticMesh->Build(false);
+		//UPackage* Package = CreatePackage(nullptr, *MeshPackageName);
+		//Package->FullyLoad();
+
+		//FString MeshAssetPath = MeshPackageName;
+		//Package->MarkPackageDirty();
+
+		//// Save the package
+		//FString ErrorMessage;
+		////ITargetPlatformManagerModule& TPMModule = GetTargetPlatformManagerRef();
+		////const TArray<ITargetPlatform*>& AvailablePlatforms = TPMModule.GetTargetPlatforms();
+
+		//FSavePackageArgs args{};
+		//args.SaveFlags = SAVE_NoError;
+		//args.Error = GError;
+		//args.TopLevelFlags = EObjectFlags::RF_Public | EObjectFlags::RF_Standalone;
+		//args.bWarnOfLongFilename = true;
+		//args.bSlowTask = false;
+		//args.FinalTimeStamp = FDateTime::Now();
+		//
+		//bool bSaved = UPackage::SavePackage(Package, StaticMesh, *MeshAssetPath, args);
+		////bSaved = UPackage::SavePackage(Package, StaticMesh, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *MeshAssetPath, GError, nullptr, false, true, SAVE_NoError, AvailablePlatforms[23], FDateTime::Now(), false);
+
+
+		//if (bSaved)
+		//{
+		//	FAssetRegistryModule::AssetCreated(StaticMesh);
+		//	UE_LOG(LogTemp, Warning, TEXT("Saved mesh to %s"), *MeshAssetPath);
+		//}
+		//else
+		//{
+		//	GError->Log(ErrorMessage);
+		//	UE_LOG(LogTemp, Error, TEXT("Failed to save mesh: %s"), *ErrorMessage);
+		//}
 
 		return StaticMesh;
 	}

@@ -23,7 +23,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh)
 	UProceduralMeshComponent* ProcMesh{ nullptr };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh)
-	UStaticMeshComponent* StaticMeshComponent;
+	UStaticMeshComponent* StaticMeshComponent;	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh)
+	UStaticMeshComponent* OuterWallComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool IsFixedValueBiome;
 	#pragma endregion
 
 	UFUNCTION(BlueprintCallable)
