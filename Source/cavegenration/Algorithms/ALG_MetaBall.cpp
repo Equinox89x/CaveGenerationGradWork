@@ -53,54 +53,49 @@ void UALG_MetaBall::Update()
 
 	MinValue = 0;
 	MaxValue = 0;
-	SphereSize = InfluenceRadius/2;
 	
-	const int NumCubes = NoiseGenerator->GridCubes.Num();
-
-	TArray<FGraphEventRef> TaskRefs;
 	for(auto& item: NoiseGenerator->GridCubes){
-	//for (int i = 0; i < NoiseGenerator->GridCubes.Num() - 1; ++i)
-	//{
-	//	FMCCube& item{ NoiseGenerator->GridCubes[i] };
 		for (size_t j = 0; j < item.Value.PointPositions.Num(); j++)
 		{
-			float Sum = 0;
+			float totalInfluence = 0;
 			const auto cubeCornerPos{ item.Value.PointPositions[j] };
 
 			int layerNr;
 			float largestNr{ 0 };
 			for (const AA_Metaball* metaBall : MetaBallObjects)
 			{
-				const auto pos{ metaBall->GetActorLocation() };
-				const float XDiff = (cubeCornerPos.X - pos.X) / MinRadius;
-				const float YDiff = (cubeCornerPos.Y - pos.Y) / MinRadius;
-				const float ZDiff = (cubeCornerPos.Z - pos.Z) / MinRadius;
-
-				float D = FMath::Sqrt((XDiff * XDiff) + (YDiff * YDiff) + (ZDiff * ZDiff));
-				Sum += InfluenceRadius / D;
-
-				if (D > largestNr) {
-					largestNr = D;
+				const float ballInfluence{ metaBall->CalculateInfluence(cubeCornerPos, DefaultInfluence * InfluenceStrength) };
+				totalInfluence += ballInfluence;	
+				
+				if (ballInfluence > largestNr) {
+					largestNr = ballInfluence;
 					layerNr = metaBall->LayerNr;
 				}
 			}
 
-			if (CanAssignValues) {
-				if (Sum > NoiseGenerator->BiomeGenerator->Treshold) {
-					item.Value.PointValues[j] = NoiseGenerator->white;
-				}
-				else {
-					//item.Value.PointValues[j] = NoiseGenerator->black;
+			totalInfluence *= DefaultInfluence * InfluenceRadius;
+
+			if (totalInfluence > NoiseGenerator->BiomeGenerator->Treshold)
+			{
+				item.Value.PointValues[j] = NoiseGenerator->white;
+			}
+			else {
+				if (!IsContinous)
+				{
+					item.Value.PointValues[j] = NoiseGenerator->black;
 				}
 			}
-			MinValue = FMath::Min(MinValue, Sum);
-			MaxValue = FMath::Max(MaxValue, Sum);
 
-			if (layerNr <= NoiseGenerator->BiomeGenerator->BiomeMaterials.Num()) {
+			MinValue = FMath::Min(MinValue, totalInfluence);
+			MaxValue = FMath::Max(MaxValue, totalInfluence);
+
+			if (layerNr <= NoiseGenerator->BiomeGenerator->BiomeMaterials.Num())
+			{
 				auto val{ NoiseGenerator->BiomeGenerator->FindClosestFloat(layerNr, true) };
 				item.Value.BiomeValues.Init(val, 8);
 			}
-			else {
+			else
+			{
 				item.Value.BiomeValues.Init(0, 8);
 			}
 		}

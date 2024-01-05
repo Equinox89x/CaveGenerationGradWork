@@ -28,3 +28,20 @@ enum class ObjectType {
 //};
 
 //float RemapValue(float Value, int OldMin, int OldMax, int NewMin, int NewMax);
+
+/*Good caves :
+	1. Default Marching cubes
+	2. Marching Cubes:
+		NoiseGenerator:
+			min & max air: 126, 255
+			perlin scale: 0.001
+			1. seed: 293.143894, 5330.922236, 22317293.131445
+			2. seed: 293.143894,329.159989,34.637587
+			grid size: 30, 30, 10
+			cube size: 115
+		BiomeGenerator:
+			seed: 1337
+			scale: 0.2
+			multiplier: 1
+			treshold: 127
+*/

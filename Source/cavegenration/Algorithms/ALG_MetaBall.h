@@ -19,17 +19,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<AA_Metaball> MetaBallToSpawn{ nullptr };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float InfluenceRadius{ 20 };
+	float InfluenceRadius{ 11.5 };	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float InfluenceStrength{ 2.8 };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int NrOfLayers{ 3 };
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int NrOfBallsPerLayer{ 5 };	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int NrOfHeightBallsPerLayer{ 3 };	
+	int NrOfHeightBallsPerLayer{ 2 };		
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MinRadius{ 1.5f };
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool CanAssignValues{ false };
+	bool IsContinous{ false };
 
 	virtual void InitValues(FVector minBoundary, FVector maxBoundary);
 	virtual void Update();
@@ -46,6 +46,7 @@ protected:
 private:	
 	FVector MinBoundary{};
 	FVector MaxBoundary{};
+	float DefaultInfluence{ 1000 };	
 
 	TArray<AA_Metaball*> MetaBallObjects{};
 	int MaxValue{ 0 }, MinValue{ 0 };

@@ -22,6 +22,7 @@ AcavegenrationCharacter::AcavegenrationCharacter()
 		
 	// Create a CameraComponent	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
+	FlashLight = CreateDefaultSubobject<USpotLightComponent>(TEXT("FlashLight"));
 	FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
 	FirstPersonCameraComponent->SetRelativeLocation(FVector(-10.f, 0.f, 60.f)); // Position the camera
 	FirstPersonCameraComponent->bUsePawnControlRotation = true;
@@ -35,6 +36,11 @@ AcavegenrationCharacter::AcavegenrationCharacter()
 	//Mesh1P->SetRelativeRotation(FRotator(0.9f, -19.19f, 5.2f));
 	Mesh1P->SetRelativeLocation(FVector(-30.f, 0.f, -150.f));
 
+	FlashLight->Intensity = 12000;
+	FlashLight->InnerConeAngle = 0;
+	FlashLight->OuterConeAngle = 40;
+	FlashLight->AttenuationRadius = 800;
+	FlashLight->SetupAttachment(FirstPersonCameraComponent);
 }
 
 void AcavegenrationCharacter::BeginPlay()
@@ -62,6 +68,9 @@ void AcavegenrationCharacter::Tick(float DeltaTime)
 		FVector NewLocation = GetActorLocation() + direction * (DeltaTime * MovementSpeed);
 		SetActorLocation(NewLocation);
 	}
+
+	FRotator CameraRotation = FirstPersonCameraComponent->GetComponentRotation();
+	FlashLight->SetWorldRotation(CameraRotation);
 }
 
 //////////////////////////////////////////////////////////////////////////// Input

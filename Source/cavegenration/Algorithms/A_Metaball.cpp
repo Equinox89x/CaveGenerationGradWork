@@ -62,3 +62,9 @@ void AA_Metaball::Tick(float DeltaTime)
     SetActorLocation(NewLocation);
 }
 
+const float AA_Metaball::CalculateInfluence(FVector cubeCornerPos, float influenceStrength) const
+{
+    const float distanceSquared{ static_cast<float>(FVector::DistSquared(cubeCornerPos, GetActorLocation())) };
+    return influenceStrength / FMath::Max(1.0f, distanceSquared);
+}
+

@@ -26,6 +26,8 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
+	const float CalculateInfluence(FVector cubeCornerPos, float influenceStrength) const;
+
 protected:
 	virtual void BeginPlay() override;
 

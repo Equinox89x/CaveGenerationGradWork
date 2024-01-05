@@ -150,45 +150,46 @@ void AMeshGenerator::GenerateMesh()
 
 UStaticMesh* AMeshGenerator::GenerateStaticMesh()
 {
-	FMeshDescription MeshDescription{ BuildMeshDescription(ProcMesh) };
+	FMeshDescription meshDescription{ BuildMeshDescription(ProcMesh) };
 
-	if (MeshDescription.Polygons().Num() > 0)
+	if (meshDescription.Polygons().Num() > 0)
 	{
 		// Create StaticMesh object
-		UStaticMesh* StaticMesh{ NewObject<UStaticMesh>(ProcMesh) };
-		StaticMesh->InitResources();
-		StaticMesh->SetLightingGuid();
+		UStaticMesh* staticMesh{ NewObject<UStaticMesh>(ProcMesh) };
+		staticMesh->InitResources();
+		staticMesh->SetLightingGuid();
 
 		// Add source to new StaticMesh
-		auto Desc = StaticMesh->CreateStaticMeshDescription();
-		Desc->SetMeshDescription(MeshDescription);
+		auto desc{ staticMesh->CreateStaticMeshDescription() };
+		desc->SetMeshDescription(meshDescription);
 		// buildSimpleCol = false, cause it creates box collision based on mesh bounds
-		StaticMesh->BuildFromStaticMeshDescriptions({ Desc }, false);
+		staticMesh->BuildFromStaticMeshDescriptions({ desc }, false);
 
-		StaticMesh->CreateBodySetup();
-		UBodySetup* NewBodySetup{ StaticMesh->GetBodySetup() };
-		NewBodySetup->BodySetupGuid = FGuid::NewGuid();
-		NewBodySetup->AggGeom.ConvexElems = ProcMesh->ProcMeshBodySetup->AggGeom.ConvexElems;
-		NewBodySetup->bGenerateMirroredCollision = true;
-		NewBodySetup->bDoubleSidedGeometry = true;
-		NewBodySetup->CollisionTraceFlag = CTF_UseComplexAsSimple;
-		NewBodySetup->CreatePhysicsMeshes();
+		staticMesh->CreateBodySetup();
+		UBodySetup* newBodySetup{ staticMesh->GetBodySetup() };
+		newBodySetup->BodySetupGuid = FGuid::NewGuid();
+		newBodySetup->AggGeom.ConvexElems = ProcMesh->ProcMeshBodySetup->AggGeom.ConvexElems;
+		newBodySetup->bGenerateMirroredCollision = true;
+		newBodySetup->bDoubleSidedGeometry = true;
+		newBodySetup->CollisionTraceFlag = CTF_UseComplexAsSimple;
+		newBodySetup->CreatePhysicsMeshes();
 
 		// Materials
-		TSet<UMaterialInterface*> UniqueMaterials;
+		TSet<UMaterialInterface*> materials;
 		for (int32 i = 0; i < ProcMesh->GetNumSections(); i++)
 		{
-			FProcMeshSection* ProcSection = ProcMesh->GetProcMeshSection(i);
-			UMaterialInterface* Material = ProcMesh->GetMaterial(i);
-			UniqueMaterials.Add(Material);
+			FProcMeshSection* procSection{ ProcMesh->GetProcMeshSection(i) };
+			UMaterialInterface* material{ ProcMesh->GetMaterial(i) };
+			materials.Add(material);
 		}
 
 		// Copy materials to new mesh
-		for (auto* Material : UniqueMaterials)
+		for (auto* mat : materials)
 		{
-			StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material));
+			staticMesh->GetStaticMaterials().Add(FStaticMaterial(mat));
 		}
 
+#pragma region saving the mesh
 		//// Save the mesh
 		//FString AssetName = TEXT("GeneratedMesh");
 		//FString PackagePath = FString::Printf(TEXT("/Game/GeneratedMeshes"));
@@ -227,8 +228,9 @@ UStaticMesh* AMeshGenerator::GenerateStaticMesh()
 		//	GError->Log(ErrorMessage);
 		//	UE_LOG(LogTemp, Error, TEXT("Failed to save mesh: %s"), *ErrorMessage);
 		//}
+#pragma endregion
 
-		return StaticMesh;
+		return staticMesh;
 	}
 
 	return nullptr;

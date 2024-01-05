@@ -246,7 +246,13 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetCubeGridY(int value) { CubeGridSize.Y = value; GridSize.Y = value * 2; };
 	UFUNCTION(BlueprintCallable)
-	void SetCubeGridZ(int value) { CubeGridSize.Z = value; GridSize.Z = value * 2; };
+	void SetCubeGridZ(int value) { CubeGridSize.Z = value; GridSize.Z = value * 2; };	
+	UFUNCTION(BlueprintCallable)
+	void SetSeedX(int value) { Seed.X = value; };
+	UFUNCTION(BlueprintCallable)
+	void SetSeedY(int value) { Seed.Y = value; };
+	UFUNCTION(BlueprintCallable)
+	void SetSeedZ(int value) { Seed.Z = value; };
 	#pragma endregion
 
 	void HandleComponentChange();
