@@ -39,27 +39,27 @@ void AA_Metaball::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    FVector NewLocation{ GetActorLocation() + (CurrentVelocity * (MovementSpeed * DeltaTime)) };
+    FVector newLocation{ GetActorLocation() + (CurrentVelocity * (MovementSpeed * DeltaTime)) };
 
-    if (NewLocation.X < MinBoundary.X || NewLocation.X > MaxBoundary.X)
+    if (newLocation.X < MinBoundary.X || newLocation.X > MaxBoundary.X)
     {
         CurrentVelocity.X *= -1;
-        NewLocation.X += 50 * CurrentVelocity.X;
+        newLocation.X += 50 * CurrentVelocity.X;
     }
 
-    if (NewLocation.Y < MinBoundary.Y || NewLocation.Y > MaxBoundary.Y)
+    if (newLocation.Y < MinBoundary.Y || newLocation.Y > MaxBoundary.Y)
     {
         CurrentVelocity.Y *= -1;
-        NewLocation.Y += 50 * CurrentVelocity.Y;
+        newLocation.Y += 50 * CurrentVelocity.Y;
     }
 
-    if (NewLocation.Z < MinBoundary.Z || NewLocation.Z > MaxBoundary.Z)
+    if (newLocation.Z < MinBoundary.Z || newLocation.Z > MaxBoundary.Z)
     {
         CurrentVelocity.Z *= -1;
-        NewLocation.Z += 50 * CurrentVelocity.Z;
+        newLocation.Z += 50 * CurrentVelocity.Z;
     }
 
-    SetActorLocation(NewLocation);
+    SetActorLocation(newLocation);
 }
 
 const float AA_Metaball::CalculateInfluence(FVector cubeCornerPos, float influenceStrength) const

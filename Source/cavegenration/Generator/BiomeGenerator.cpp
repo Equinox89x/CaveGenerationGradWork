@@ -46,7 +46,7 @@ void ABiomeGenerator::InitBiomeLayers(FVector minBoundary, FVector maxBoundary)
 		const auto zLocMin{ zLoc };
 		const auto zLocMax{ zLoc + heightToSpawn };
 		calculatedHeight += heightToSpawn;
-		BiomeLayers.Add({ i, FVector2D{ zLocMin, zLocMax } });
+		LayerBiomes.Add({ i, FVector2D{ zLocMin, zLocMax } });
 	}
 }
 
@@ -114,10 +114,10 @@ void ABiomeGenerator::Reset()
 void ABiomeGenerator::FillColorArr()
 {
 	NrOfColors = BiomeMaterials.Num();
-	UsableColors.Empty();
+	NoiseBiomes.Empty();
 	for (size_t i = 0; i < NrOfColors; i++)
 	{
-		UsableColors.Add(255 / (i+1), BiomeMaterials[i]);
+		NoiseBiomes.Add(255 / (i+1), BiomeMaterials[i]);
 	}
 }
 
@@ -144,7 +144,7 @@ bool ABiomeGenerator::IsTriangleLookingDown(const FVector& Vertex1, const FVecto
 float ABiomeGenerator::FindClosestFloat(float TargetNumber, bool isDirectAccess)
 {
 	TArray<float> floatArray;
-	UsableColors.GetKeys(floatArray);
+	NoiseBiomes.GetKeys(floatArray);
 
 	if (floatArray.Num() == 0)
 	{
@@ -155,54 +155,54 @@ float ABiomeGenerator::FindClosestFloat(float TargetNumber, bool isDirectAccess)
 		return floatArray[int(TargetNumber)];
 	}
 
-	float ClosestFloat{ floatArray[0] };
-	float MinDifference = FMath::Abs(TargetNumber - ClosestFloat);
+	float closestFloat{ floatArray[0] };
+	float minDifference = FMath::Abs(TargetNumber - closestFloat);
 
-	for (float CurrentFloat : floatArray)
+	for (float currentFloat : floatArray)
 	{
-		float CurrentDifference = FMath::Abs(TargetNumber - CurrentFloat);
+		float currentDifference = FMath::Abs(TargetNumber - currentFloat);
 
-		if (CurrentDifference < MinDifference)
+		if (currentDifference < minDifference)
 		{
-			ClosestFloat = CurrentFloat;
-			MinDifference = CurrentDifference;
+			closestFloat = currentFloat;
+			minDifference = currentDifference;
 		}
 	}
 
-	return ClosestFloat;
+	return closestFloat;
 }
 
-FBiome& ABiomeGenerator::GetSelectedBiome(const FMCCube& cube, bool isFixedValueBiome)
+FBiome& ABiomeGenerator::GetSelectedBiome(const FMCCube& cube, bool isLayeredMethod)
 {
-	TArray<float> keys;
-	UsableColors.GetKeys(keys);
-	if (isFixedValueBiome) {
-		for (const auto& pair : BiomeLayers) {
+	TArray<float> noiseBiomeKeys;
+	NoiseBiomes.GetKeys(noiseBiomeKeys);
+	if (isLayeredMethod) {
+		for (const auto& pair : LayerBiomes) {
 			const FVector2D minMax{ pair.Value };
 			if (cube.CubeLocation.Z >= minMax.X && cube.CubeLocation.Z <= minMax.Y) {
 
-				return UsableColors[keys[pair.Key]];
+				return NoiseBiomes[noiseBiomeKeys[pair.Key]];
 			}
 		}
 	}
 	else {
-		TMap<float, int32> ValueCountMap;
+		TMap<float, int32> valueCountMap;
 
 		for (float Value : cube.BiomeValues)
 		{
-			if (ValueCountMap.Contains(Value))
+			if (valueCountMap.Contains(Value))
 			{
-				ValueCountMap[Value]++;
+				valueCountMap[Value]++;
 			}
 			else
 			{
-				ValueCountMap.Add(Value, 1);
+				valueCountMap.Add(Value, 1);
 			}
 		}
 
 		float MostFrequentValue;
 		int MaxCount{ 0 };
-		for (const auto& Pair : ValueCountMap)
+		for (const auto& Pair : valueCountMap)
 		{
 			if (Pair.Value > MaxCount)
 			{
@@ -211,7 +211,7 @@ FBiome& ABiomeGenerator::GetSelectedBiome(const FMCCube& cube, bool isFixedValue
 			}
 		}
 
-		return UsableColors[MostFrequentValue];
+		return NoiseBiomes[MostFrequentValue];
 	}
-	return UsableColors[keys[0]];
+	return NoiseBiomes[noiseBiomeKeys[0]];
 }

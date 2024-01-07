@@ -80,9 +80,9 @@ private:
 	FastNoiseLite FastNoise{};
 
 	int NrOfColors{ 4 };	
-	TMap<float, FBiome> UsableColors;
+	TMap<float, FBiome> NoiseBiomes;
 
-	TMap<int, FVector2D> BiomeLayers{};
+	TMap<int, FVector2D> LayerBiomes{};
 
 	TMap<FVector, FVector> CeilingLocations;
 	TMap<FVector, FVector> FloorLocations;

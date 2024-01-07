@@ -95,45 +95,45 @@ void AMeshGenerator::GenerateMesh()
 	// Marching Cubes Algorithm
 	for (const auto& cube : NoiseGenerator->GridCubesForMesh)
 	{
-		TArray<FVector> Vertices;
-		TArray<int> Triangles;
+		TArray<FVector> vertices;
+		TArray<int> triangles;
 
 		// Calculate the 8-bit code representing the cube's configuration
-		int CubeConfigIndex{ 0 };
+		int cubeConfigIndex{ 0 };
 		for (int i = 0; i < 8; ++i)
 		{
 			if (cube.Value.PointValues[i] > 0.5f)
 			{
-				CubeConfigIndex |= 1 << i;
+				cubeConfigIndex |= 1 << i;
 			}
 		}
 
 		// Detect what biome to spawn
 		const FBiome& selectedBiome{ BiomeGenerator->GetSelectedBiome(cube.Value, IsFixedValueBiome) };
 
-		for (int i = 0; TriangulationTable[CubeConfigIndex][i] != -1; i += 3)
+		for (int i = 0; TriangulationTable[cubeConfigIndex][i] != -1; i += 3)
 		{
-			const int VertexIndex0{ TriangulationTable[CubeConfigIndex][i] };
-			const int VertexIndex1{ TriangulationTable[CubeConfigIndex][i + 1] };
-			const int VertexIndex2{ TriangulationTable[CubeConfigIndex][i + 2] };
+			const int vertexIndex0{ TriangulationTable[cubeConfigIndex][i] };
+			const int vertexIndex1{ TriangulationTable[cubeConfigIndex][i + 1] };
+			const int vertexIndex2{ TriangulationTable[cubeConfigIndex][i + 2] };
 
-			const FVector Vertex0{ cube.Value.TrianglePointPositions[VertexIndex0].Position };
-			const FVector Vertex1{ cube.Value.TrianglePointPositions[VertexIndex1].Position };
-			const FVector Vertex2{ cube.Value.TrianglePointPositions[VertexIndex2].Position };
+			const FVector vertex0{ cube.Value.TrianglePointPositions[vertexIndex0].Position };
+			const FVector vertex1{ cube.Value.TrianglePointPositions[vertexIndex1].Position };
+			const FVector vertex2{ cube.Value.TrianglePointPositions[vertexIndex2].Position };
 
 			// To flip faces, switch the vertex order (Vertex0, 1 ,2)
-			Vertices.Add(Vertex2);
-			Vertices.Add(Vertex1);
-			Vertices.Add(Vertex0);
+			vertices.Add(vertex2);
+			vertices.Add(vertex1);
+			vertices.Add(vertex0);
 
-			Triangles.Add(Vertices.Num() - 3);
-			Triangles.Add(Vertices.Num() - 2);
-			Triangles.Add(Vertices.Num() - 1);
+			triangles.Add(vertices.Num() - 3);
+			triangles.Add(vertices.Num() - 2);
+			triangles.Add(vertices.Num() - 1);
 
-			BiomeGenerator->CreateFloorAndCeiling(Vertex0, Vertex1, Vertex2, selectedBiome.Color);
+			BiomeGenerator->CreateFloorAndCeiling(vertex0, vertex1, vertex2, selectedBiome.Color);
 		}
 
-		ProcMesh->CreateMeshSection(index, Vertices, Triangles, TArray<FVector>{}, TArray<FVector2D>{}, TArray<FColor>{}, TArray<FProcMeshTangent>{}, true);
+		ProcMesh->CreateMeshSection(index, vertices, triangles, TArray<FVector>{}, TArray<FVector2D>{}, TArray<FColor>{}, TArray<FProcMeshTangent>{}, true);
 		ProcMesh->SetMaterial(index, selectedBiome.Wall);
 
 		index++;
